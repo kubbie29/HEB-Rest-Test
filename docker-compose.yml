@@ -1,0 +1,9 @@
+version: "3"
+services:
+  db:
+    image: "postgres:12.4"
+    container_name: "postgres_dev_bponder"
+    environment:
+          POSTGRES_PASSWORD: 'postgres'
+    ports:
+      - "5432:5432"
