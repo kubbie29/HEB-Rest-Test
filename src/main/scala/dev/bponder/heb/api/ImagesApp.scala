@@ -26,21 +26,18 @@ object ImagesApp {
   val app: Http[ImageRepository with Connection, Throwable, Request, Response] =
     Http.collectHttp[Request] {
 
-      case Method.GET -> !! / "text" =>
+      case Method.GET -> !! / "imagecount" =>
         val result = for {
           count <- ImageRepository.getImage
-        } yield Response.text(s"Hello World! $count")
+        } yield Response.text(s"There are $count rows in the database")
         ZIO.serviceWithZIO[Conf] { conf =>
           // if this implicit is not provided, tranzactio will use Conf.dbRecovery instead
           implicit val errorRecovery: ErrorStrategiesRef = conf.alternateDbRecovery
           Database.transactionOrWiden(result)
         }
         Http.fromZIO(result)
-      case Method.GET -> !! / "json" => Response.json("""{"greetings": "Hello World!"}""").toHttp
 
       case Method.GET -> !! / "test" =>
-        //val image = Http.fromFile(new File("./arrow.png"))
-
         val insert = for {
           image <- ZStream.fromFile(new File("./arrow.png")).runCollect
           img = Image("", "Label", image.toArray, Json.Null, Json.Null)
