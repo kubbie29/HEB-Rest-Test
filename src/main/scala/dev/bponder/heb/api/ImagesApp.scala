@@ -1,13 +1,19 @@
 package dev.bponder.heb.api
 
 import dev.bponder.heb.Conf
+import dev.bponder.heb.model.Image
 import dev.bponder.heb.repository.ImageRepository
+import io.circe.Json
 import io.github.gaelrenoux.tranzactio.{DbException, ErrorStrategiesRef}
 import io.github.gaelrenoux.tranzactio.anorm.Database
 import io.github.gaelrenoux.tranzactio.doobie.Connection
 import zio.http._
 import zio.http.model.Method
 import zio._
+import zio.stream._
+
+import java.io.File
+import java.nio.file.Paths
 
 /***
   * API Specification
@@ -16,7 +22,8 @@ import zio._
 
   */
 object ImagesApp {
-  val app: Http[ImageRepository with Connection, DbException, Request, Response] =
+
+  val app: Http[ImageRepository with Connection, Throwable, Request, Response] =
     Http.collectHttp[Request] {
 
       case Method.GET -> !! / "text" =>
@@ -30,6 +37,23 @@ object ImagesApp {
         }
         Http.fromZIO(result)
       case Method.GET -> !! / "json" => Response.json("""{"greetings": "Hello World!"}""").toHttp
+
+      case Method.GET -> !! / "test" =>
+        //val image = Http.fromFile(new File("./arrow.png"))
+
+        val insert = for {
+          image <- ZStream.fromFile(new File("./arrow.png")).runCollect
+          img = Image("", "Label", image.toArray, Json.Null, Json.Null)
+          _ <- ImageRepository.insertImage(img)
+        } yield Response.text("Insert Test")
+
+        ZIO.serviceWithZIO[Conf] { conf =>
+          // if this implicit is not provided, tranzactio will use Conf.dbRecovery instead
+          implicit val errorRecovery: ErrorStrategiesRef = conf.alternateDbRecovery
+          Database.transactionOrWiden(insert)
+        }
+
+        Http.fromZIO(insert)
     }
 //  def apply(): Http[Any, Nothing, Request, Response] =
 //    Http.collect[Request] {
